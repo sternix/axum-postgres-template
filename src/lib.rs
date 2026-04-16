@@ -9,15 +9,16 @@ pub mod telemetry;
 
 pub use cfg::*;
 pub use db::*;
+use deadpool_postgres::Pool;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: Db,
+    pub pool: Pool,
     pub cfg: Config,
 }
 
-pub fn router(cfg: Config, db: Db) -> Router {
-    let app_state = AppState { db, cfg };
+pub fn router(cfg: Config, pool: Pool) -> Router {
+    let app_state = AppState { pool, cfg };
 
     // Middleware that adds high level tracing to a Service.
     // Trace comes with good defaults but also supports customizing many aspects of the output:

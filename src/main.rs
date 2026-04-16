@@ -1,4 +1,4 @@
-use server::{telemetry, Configuration, Db};
+use server::{Configuration, Db, telemetry};
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -21,15 +21,15 @@ async fn main() {
         .await
         .expect("Failed to initialize db");
 
-    tracing::debug!("Running migrations");
-    db.migrate().await.expect("Failed to run migrations");
+    // tracing::debug!("Running migrations");
+    // db.migrate().await.expect("Failed to run migrations");
 
     // Spin up our server.
     tracing::info!("Starting server on {}", cfg.listen_address);
     let listener = TcpListener::bind(&cfg.listen_address)
         .await
         .expect("Failed to bind address");
-    let router = server::router(cfg, db);
+    let router = server::router(cfg, db.pool);
     axum::serve(listener, router)
         .await
         .expect("Failed to start server")

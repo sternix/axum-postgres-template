@@ -1,10 +1,10 @@
-use axum::{body::Body, http::Request, http::Response, Router};
-use sqlx::{Connection, Executor, PgConnection};
+use axum::{Router, body::Body, http::Request, http::Response};
 use std::sync::Once;
+use tokio_postgres::NoTls;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-use server::{router, telemetry, Configuration, Db};
+use server::{Configuration, Db, router, telemetry};
 
 static TRACING: Once = Once::new();
 
@@ -20,7 +20,7 @@ impl TestApp {
         dotenvy::dotenv().ok();
 
         // Set port to 0 so tests can spawn multiple servers on OS assigned ports.
-        std::env::set_var("PORT", "0");
+        unsafe { std::env::set_var("PORT", "0") };
 
         // Setup tracing. Once.
         TRACING.call_once(telemetry::setup_tracing);
@@ -36,10 +36,10 @@ impl TestApp {
             .await
             .expect("Failed to initialize db");
 
-        tracing::debug!("Running migrations");
-        db.migrate().await.expect("Failed to run migrations");
+        // tracing::debug!("Running migrations");
+        // db.migrate().await.expect("Failed to run migrations");
 
-        let router = router(cfg, db.clone());
+        let router = router(cfg, db.pool.clone());
         Self { db, router }
     }
 
@@ -57,11 +57,21 @@ pub async fn create_test_db(db_dsn: &str) -> String {
         .expect("Failed to remove db name from dsn_url");
     let randon_db_name = Uuid::now_v7().to_string();
     let db_url = format!("{}{}", &db_dsn, randon_db_name);
-    let mut conn = PgConnection::connect(db_dsn)
+
+    let (client, connection) = tokio_postgres::connect("host=localhost user=postgres", NoTls)
         .await
         .expect("Failed to connect to Postgres");
-    conn.execute(format!(r#"CREATE DATABASE "{}";"#, randon_db_name).as_str())
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("connection error: {}", e);
+        }
+    });
+
+    client
+        .execute(format!("CREATE DATABASE {};", randon_db_name).as_str(), &[])
         .await
         .expect("Failed to create test database");
+
     db_url
 }

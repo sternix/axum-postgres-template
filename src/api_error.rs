@@ -1,7 +1,7 @@
 use axum::{
+    Json,
     extract::rejection::JsonRejection,
     response::{IntoResponse, Response},
-    Json,
 };
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -20,9 +20,9 @@ pub enum ApiError {
     #[error("Invalid request: {0}")]
     InvalidRequest(String),
 
-    /// Converts from `sqlx::Error`.
+    /// Converts from `tokio_postgres::Error`.
     #[error("A database error has occurred.")]
-    DatabaseError(#[from] sqlx::Error),
+    DatabaseError(#[from] tokio_postgres::Error),
 
     /// Converts from any `anyhow::Error`.
     #[error("An internal server error has occurred.")]
